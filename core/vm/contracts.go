@@ -1161,6 +1161,8 @@ func (c *llmInference) Run(input []byte) ([]byte, error) {
 
 // Builds the query from the LLM input string and queries the backend.
 func llmQueryBackend(input string) string {
+    // TODO: abstract the backend URL format, take the
+    // URL:IP:port via params.
     url := "http://74.82.28.167:8080/generate"
     request_template := `{
         "inputs": "%s",
