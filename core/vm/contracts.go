@@ -17,11 +17,12 @@
 package vm
 
 import (
+    "bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
 
@@ -1146,30 +1147,54 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 // Precompile implementation for interfacing with LLM.
 type llmInference struct{}
 
+type Post struct {
+	Generated  string `json:"generated_text"`
+}
+
 func (c *llmInference) RequiredGas(input []byte) uint64 {
 	return params.LLMInferenceGas
 }
 func (c *llmInference) Run(input []byte) ([]byte, error) {
-    // Build the query URL from the input string
-    url := llmUrl(string(input));
-
-    // Invoke the backend inference engine
-    res, err := http.Get(url)
-    if err != nil {
-    	return nil, err
-    }
-
-    defer res.Body.Close()
-    body, err := io.ReadAll(res.Body)
-    if err != nil {
-    	return nil, err
-    }
-
-	return []byte(body), nil
+    text := llmQueryBackend(string(input));
+	return []byte(text), nil
 }
 
-// Builds the query URP from the LLM input string
-func llmUrl(input string) string {
-    // TODO: plumb the right inference backend.
-    return (fmt.Sprintf("www.todo.com/query=%s", input));
+// Builds the query from the LLM input string and queries the backend.
+func llmQueryBackend(input string) string {
+    url := "http://74.82.28.167:8080/generate"
+    request_template := `{
+        "inputs": "%s",
+        "parameters": {
+            "max_new_tokens": 20
+        }
+    }`
+    body := fmt.Sprintf(request_template, input)
+    fmt.Println("llmUrl(): body = ", body)
+
+    r, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(body)))
+    if err != nil {
+    	panic(err)
+    }
+    r.Header.Add("Content-Type", "application/json")
+
+    client := &http.Client{}
+    res, err := client.Do(r)
+    if err != nil {
+    	panic(err)
+    }
+    defer res.Body.Close()
+    fmt.Println("llmUrl(): received body = ", res.Body)
+
+    post := &Post{}
+    derr := json.NewDecoder(res.Body).Decode(post)
+    if derr != nil {
+    	panic(derr)
+    }
+
+    if res.StatusCode != http.StatusOK {
+    	panic(res.Status)
+    }
+
+    fmt.Println("Generated:", post.Generated)
+    return (post.Generated)
 }
