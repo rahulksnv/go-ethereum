@@ -21,7 +21,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -1148,5 +1150,26 @@ func (c *llmInference) RequiredGas(input []byte) uint64 {
 	return params.LLMInferenceGas
 }
 func (c *llmInference) Run(input []byte) ([]byte, error) {
-	return input, nil
+    // Build the query URL from the input string
+    url := llmUrl(string(input));
+
+    // Invoke the backend inference engine
+    res, err := http.Get(url)
+    if err != nil {
+    	return nil, err
+    }
+
+    defer res.Body.Close()
+    body, err := io.ReadAll(res.Body)
+    if err != nil {
+    	return nil, err
+    }
+
+	return []byte(body), nil
+}
+
+// Builds the query URP from the LLM input string
+func llmUrl(input string) string {
+    // TODO: plumb the right inference backend.
+    return (fmt.Sprintf("www.todo.com/query=%s", input));
 }
