@@ -17,7 +17,7 @@
 package vm
 
 import (
-    "bytes"
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
